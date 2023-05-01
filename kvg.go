@@ -321,8 +321,9 @@ func ParseKanji(contents []byte) (kanjivg SVG, oerr error) {
 	return kanjivg, nil
 }
 
-/* The first group which may contain a path. Sometimes we need a
-   pointer so this returns a pointer. */
+// The "parent" or "base" group of an SVG. This is a pointer to a
+// value within kvg itself. See also Grab for an easy function which
+// gets both the SVG and the base group from a file.
 func (kvg *SVG) BaseGroup() (group *Group) {
 	return &kvg.Groups[0].Children[0].Group
 }
@@ -354,6 +355,8 @@ func renumber(child *Child, base string, nPathPtr, nGroupPtr *int64) {
 	(*child).Path.ID = fmt.Sprintf("%s-s%d", base, *nPathPtr)
 }
 
+// Get the value of the base element of kvg. The second return value
+// is the basegroup ID without the "kvg:" prefix.
 func (kvg *SVG) Base() (base, baseNoKVG string) {
 	baseGroup := kvg.BaseGroup()
 	base = baseGroup.ID
@@ -384,7 +387,7 @@ func (kvg *SVG) SetBase(base string) {
 	}
 }
 
-// Renumber the labels
+// Renumber the labels of the text group.
 func (kvg *SVG) RenumberLabels() {
 	labels := kvg.Groups[1]
 	for i := range labels.Children {
@@ -409,6 +412,7 @@ func (svg *SVG) RenumberXML() {
 	svg.RenumberLabels()
 }
 
+// Read, renumber, and then write out a kanji file.
 func RenumberFile(file string) {
 	kvg := ReadKanjiFileOrDie(file)
 	kvg.RenumberXML()
@@ -461,17 +465,19 @@ func (gp *Group) FindMultiElement(funky string) (locs [][]*Group) {
 	return locs
 }
 
-// Find the first instance of "funky" as a subgroup of "gp". This is
-// usually enough since we usually only want to find a single
-// subgroup.
-func (gp *Group) FindElement(file string, funky string) (found bool, loc []*Group) {
-	return FindElement(file, gp, funky)
+// See the documentation for FindElement(group,funky)
+func (gp *Group) FindElement(funky string) (found bool, loc []*Group) {
+	return FindElement(gp, funky)
 }
 
-/* Find a group with the element "funky". If found, return true and
-   the location of it as a list of pointers to the parent groups it's
-   in. If not found return false and an empty slice. */
-func FindElement(file string, gp *Group, funky string) (found bool, loc []*Group) {
+// Find a group with the element "funky". This is usually enough since
+// we usually only want to find a single subgroup. If found, return
+// true and the location of it as a list of pointers to the parent
+// groups it's in. The zeroth element of loc is the group which
+// contains the element, the first is that element's parent, and so
+// on. If the element is not found, return value is false and an empty
+// slice.
+func FindElement(gp *Group, funky string) (found bool, loc []*Group) {
 	if gp.Element == funky {
 		found = true
 		loc = []*Group{gp}
@@ -480,7 +486,7 @@ func FindElement(file string, gp *Group, funky string) (found bool, loc []*Group
 	for i, g := range gp.Children {
 		if g.IsGroup {
 			gPtr := &gp.Children[i].Group
-			found, loc = FindElement(file, gPtr, funky)
+			found, loc = FindElement(gPtr, funky)
 			if found {
 				loc = append(loc, gp)
 				return true, loc
