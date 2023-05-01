@@ -58,7 +58,7 @@ type Command struct {
 	Params []float64
 }
 
-// IsAbsolute returns true is the SVG path command is absolute.
+// IsAbsolute returns true if the SVG path command is absolute.
 func (c Command) IsAbsolute() bool {
 	return c.Symbol == strings.ToUpper(c.Symbol)
 }
@@ -208,8 +208,8 @@ func toCommands(tokens []token) (commands []Command, err error) {
 	return commands, nil
 }
 
-// Create Subpaths takes a collection of Command objects and determines all
-// subpaths within the collection - step 3.
+// createSubpaths takes a collection of Command objects and determines
+// all subpaths within the collection - step 3.
 func createSubpaths(commands []Command) (path SVGPath) {
 	var subpath []Command
 	for i, command := range commands {

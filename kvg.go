@@ -1,11 +1,10 @@
+// Read, write, and manipulate KanjiVG files
 package kvg
 
 import (
 	"encoding/xml"
 	"fmt"
-	"ids"
 	"io/fs"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -15,9 +14,13 @@ import (
 	"unicode"
 )
 
+// This matches most of the variant endings.
 var Variant = regexp.MustCompile(`-(Kaisho|MidFst|HzLst|VtLst|HzFstLeRi|HzFstRiLe|TenLst|Hyougai|Jinmei|HzFst|VtFstRiLe|LeFst|Vt6|VtFstRiLe|HzFst|HzFstVtLst|MdLst|VtFst|Vt4|Ten3|DgLst|Insatsu|MdFst|MdFst2|Dg3|TenFst|RiLe|NoDot)`)
+
+// The base directory
 var KVDir = "/home/ben/software/kanjivg/kanji"
 
+// A path, in other words a stroke of the kanji.
 type Path struct {
 	XMLName xml.Name `xml:"path"`
 	ID      string   `xml:"id,attr"`
@@ -27,6 +30,7 @@ type Path struct {
 	Class   string   `xml:"class,attr,omitempty"`
 }
 
+// Text holder, this contains the stroke numbers.
 type Text struct {
 	XMLName   xml.Name `xml:"text"`
 	Transform string   `xml:"transform,attr,omitempty"`
@@ -35,6 +39,7 @@ type Text struct {
 	Class     string   `xml:"class,attr,omitempty"`
 }
 
+// Either a group or a path element.
 type Child struct {
 	Path    Path
 	Group   Group
@@ -44,6 +49,7 @@ type Child struct {
 	Parent  *Group `xml:"-"`
 }
 
+// A group.
 type Group struct {
 	XMLName     xml.Name `xml:"g"`
 	ID          string   `xml:"id,attr,omitempty"`
@@ -73,6 +79,7 @@ type SVG struct {
 	Groups  []Group  `xml:"g"`
 }
 
+// This is the heading as repeated in each file.
 var Heading = `<?xml version="1.0" encoding="UTF-8"?>
 <!--
 Copyright (C) 2009/2010/2011 Ulrich Apel.
@@ -126,8 +133,8 @@ func ExpectRadical(k rune) bool {
 	return true
 }
 
-/* Change the formatting of xmlout to that used by KanjiVG project,
-   and add the common heading material. */
+// Change the formatting of xmlout to that used by KanjiVG project,
+// and add the common heading material.
 func fixXML(xmlout []byte) []byte {
 	outFixed := strings.Replace(string(xmlout), "></path>", "/>", -1)
 	outFixed = strings.Replace(outFixed, "\t<g", "<g", -1)
@@ -140,12 +147,12 @@ func fixXML(xmlout []byte) []byte {
 	return []byte(outstring)
 }
 
-/* Make kanjivg into the XML of the KanjiVG files. */
+// Make kanjivg into the XML of the KanjiVG files.
 func (kanjivg *SVG) MakeXML() (output []byte) {
 	return MakeXML(kanjivg)
 }
 
-/* Make kanjivg into the XML of the KanjiVG files. */
+// Make kanjivg into the XML of the KanjiVG files.
 func MakeXML(kanjivg *SVG) (output []byte) {
 	kanjivg.RenumberXML()
 	output, err := xml.MarshalIndent(*kanjivg, "", "\t")
@@ -157,19 +164,22 @@ func MakeXML(kanjivg *SVG) (output []byte) {
 	return output
 }
 
+// Write kanjivg out as a file.
 func (kanjivg *SVG) WriteKanjiFile(file string) {
 	WriteKanjiFile(file, kanjivg)
 }
 
-/* Write kanjivg to file. */
+// Write kanjivg to file.
 func WriteKanjiFile(file string, kanjivg *SVG) {
-	err := ioutil.WriteFile(file, MakeXML(kanjivg), 0644)
+	err := os.WriteFile(file, MakeXML(kanjivg), 0644)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error writing %s: %s\n", file, err)
 		os.Exit(1)
 	}
 }
 
+// Special marshaller for "child" elements, since a g may contain
+// either a path or a text or another g element.
 func (c Child) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	if c.IsGroup {
 		start.Name = xml.Name{Local: "g"}
@@ -183,10 +193,10 @@ func (c Child) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 	return e.EncodeElement(c.Path, start)
 }
 
-/* For some reason the kvg:type parts were not being picked up by the
-   default parser, so I wrote this in order to work around that. There
-   must be something I have missed about how the default unmarshal
-   routine works. */
+// Special unmarshaller. For some reason the kvg:type parts were not
+// being picked up by the default parser, so I wrote this in order to
+// work around that. There must be something I have missed about how
+// the default unmarshal routine works.
 func (p *Path) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error) {
 	for _, attr := range start.Attr {
 		switch attr.Name.Local {
@@ -213,6 +223,7 @@ func (p *Path) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error) 
 	}
 }
 
+// Unmarshaller for a group.
 func (g *Group) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error) {
 	for _, attr := range start.Attr {
 		switch attr.Name.Local {
@@ -300,7 +311,9 @@ func (g *Group) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error)
 	}
 }
 
-func ParseKanji(file string, contents []byte) (kanjivg SVG, oerr error) {
+// Given a kanji in "contents", parse it into kanjivg. The error value
+// comes from the XML unmarshalling.
+func ParseKanji(contents []byte) (kanjivg SVG, oerr error) {
 	oerr = xml.Unmarshal(contents, &kanjivg)
 	if oerr != nil {
 		return kanjivg, oerr
@@ -314,12 +327,13 @@ func (kvg *SVG) BaseGroup() (group *Group) {
 	return &kvg.Groups[0].Children[0].Group
 }
 
+// Given a kanji file, read it and put the contents into kanjivg.
 func ReadKanjiFile(file string) (kanjivg SVG, oerr error) {
-	contents, oerr := ioutil.ReadFile(file)
+	contents, oerr := os.ReadFile(file)
 	if oerr != nil {
 		return kanjivg, oerr
 	}
-	kanjivg, oerr = ParseKanji(file, contents)
+	kanjivg, oerr = ParseKanji(contents)
 	if oerr != nil {
 		return kanjivg, oerr
 	}
@@ -501,16 +515,26 @@ func getPaths(g *Group) (paths []*Path) {
 	return paths
 }
 
+// Remove the KVDir prefix from a file name.
 func TFile(file string) string {
 	return strings.TrimPrefix(file, KVDir+"/")
 }
 
+// The structure which contains the radical information for a kanji. A
+// single radical may consist of multiple groups, and there are four
+// different types of radicals, hence the complicated structure. This
+// uses pointers to the actual groups within your base structure.
 type Radical struct {
 	General, Tradit, Nelson, JIS []*Group
 }
 
+// Set this to true if you want SearchRadical to print when it finds a
+// duplicate radical.
 var PrintDouble = false
 
+// Find the radicals in g. This would usually be called on the base
+// group of a character. The return values point to values within g
+// itself, for the sake of modifying them.
 func (g *Group) SearchRadical(radPtr *Radical) {
 	for i := range g.Children {
 		child := &g.Children[i]
@@ -560,8 +584,8 @@ var pathIDRe = regexp.MustCompile("kvg:" + hexID + ".*-s([0-9]+)")
 var fileIDRe = regexp.MustCompile(".*" + hexID + "(?:-.+)?\\.svg$")
 var filePartRe = regexp.MustCompile("(?:.*/)?(" + hexID + "(?:-([A-Za-z][A-Za-z0-9]*))?)\\.svg$")
 
-/* Hexadecimal to number. We already know it is valid from the regex
-   validation so we can fail fatally if this fails. */
+// Hexadecimal to number. We already know hexID is valid from the
+// regex validation, so we can fail fatally if this fails.
 func HexIDToNum(hexID string) (num int64) {
 	num, err := strconv.ParseInt(hexID, 16, 64)
 	if err != nil {
@@ -621,6 +645,8 @@ type SVGFunc func(kanjivg SVG)
 
 type SVGFileFunc func(file string, kanjivg SVG)
 
+// Examine a file specified by path, and call fn on the contents if
+// valid to do so.
 func ExamineKanjiFile(path string, d fs.DirEntry, fn SVGFunc) (oerr error) {
 	if d.IsDir() {
 		return nil
@@ -636,6 +662,14 @@ func ExamineKanjiFile(path string, d fs.DirEntry, fn SVGFunc) (oerr error) {
 	return nil
 }
 
+// Examine all the files in KVDir. Before using this, set KVDir to the
+// value on your system. It will go through each file, read its
+// contents, and call the function fn you specify on each of them. See
+// also ExamineAllFilesSimple, which doesn't read the file contents
+// first. This is usually better if you want to just check some files,
+// since you can check the Unicode ID of the character using
+// FileToNum, and decide whether to read it all in, rather than
+// reading everything for all files.
 func ExamineAllFiles(fn SVGFileFunc) {
 	filepath.WalkDir(KVDir, func(path string, d fs.DirEntry, err error) error {
 		if d.IsDir() {
@@ -647,6 +681,9 @@ func ExamineAllFiles(fn SVGFileFunc) {
 	})
 }
 
+// Examine all the files in KVDir. Before using this, set KVDir to the
+// value on your system. It will go through each file and call fn on
+// them. It doesn't read the contents, unlike ExamineAllFiles.
 func ExamineAllFilesSimple(fn func(file string)) {
 	filepath.WalkDir(KVDir, func(path string, d fs.DirEntry, err error) error {
 		if d.IsDir() {
@@ -660,57 +697,7 @@ func ExamineAllFilesSimple(fn func(file string)) {
 	})
 }
 
-var comp2hanzi map[string][]string
-var comp2HanziInit = false
-
-func initComp2Hanzi() {
-	if comp2HanziInit {
-		return
-	}
-	comp2hanzi = ids.ReverseSuperIDS()
-	comp2HanziInit = true
-}
-
-func HanziWithComp(comp2hanzi map[string][]string, comp string) (found bool, hanzis map[string]bool) {
-	hanziList := comp2hanzi[comp]
-	if len(hanziList) == 0 {
-		return false, hanzis
-	}
-	hanzis = make(map[string]bool, len(hanziList))
-	for _, h := range hanziList {
-		hanzis[h] = true
-	}
-	return true, hanzis
-}
-
-type FixFile func(file string)
-
-func FindCompKanji(comp string, f FixFile) {
-	initComp2Hanzi()
-	ok, gonzos := HanziWithComp(comp2hanzi, comp)
-	if !ok {
-		fmt.Printf("No %s found in IDS.\n", comp)
-		return
-	}
-	filepath.WalkDir(KVDir, func(path string, d fs.DirEntry, err error) error {
-		if d.IsDir() {
-			return nil
-		}
-		if Backup.MatchString(path) {
-			return nil
-		}
-		kanji := string(rune(FileToNum(path)))
-		if kanji != comp && !gonzos[kanji] {
-			return nil
-		}
-		f(path)
-		return nil
-	})
-
-}
-
-/* Get just the number from the file name. */
-
+// Get just the Unicode number from a kanjivg file name.
 func FileToNum(fileName string) (num int64) {
 	match := fileIDRe.FindStringSubmatch(fileName)
 	if len(match) == 0 {
@@ -735,14 +722,22 @@ func ReadKanjiFileOrDie(fileName string) (svg SVG) {
 	return svg
 }
 
-/* Get both the SVG and the base group. The svg needs to be a pointer
-   so that the base group points to it, not to a copy. */
+// Read a KanjiVG file, and return both the SVG and its base group. In
+// practice it's a very common pattern to want to read a file, then
+// usually one wants to read the base group, and when writing it back
+// out again, one wants the full SVG, so this is a handy function in
+// practice.
 func Grab(fileName string) (svgPtr *SVG, base *Group) {
 	svg := ReadKanjiFileOrDie(fileName)
 	base = svg.BaseGroup()
 	return &svg, base
 }
 
+// Given a group g, try to find an element of type t. If an element is
+// found, loc is an array of children with element 0 the element of
+// type t and the remaining elements its successive parents. found is
+// true or false depending on whether the element is found. The value
+// of file is not used. This function
 func FindType(file string, g *Group, t string) (found bool, loc []*Child) {
 	for i, c := range g.Children {
 		if c.IsGroup {
@@ -774,15 +769,18 @@ func (g *Group) dump(depth int) (s string) {
 	return s
 }
 
+// Convert g into a printable string
 func (g *Group) Dump() (s string) {
 	return g.dump(0)
 }
 
+// Return all the paths in the base group of svg.
 func (svg *SVG) GetPaths() (paths []*Path) {
 	base := svg.BaseGroup()
 	return getPaths(base)
 }
 
+// Get the numeric part of a path ID
 func PathIDToNum(id string) (num int64) {
 	match := pathIDRe.FindStringSubmatch(id)
 	return decimalToNum(match[2])
