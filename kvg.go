@@ -352,7 +352,7 @@ func (kvg *SVG) Base() (base, baseNoKVG string) {
 // appropriately.
 func (kvg *SVG) SetBase(base string) {
 	if base[0:4] != "kvg:" {
-		log.Fatalf("Base name '%s' does not start with 'kvg:'")
+		log.Fatalf("Base name '%s' does not start with 'kvg:'", base)
 	}
 	baseGroup := kvg.BaseGroup()
 	baseGroup.ID = base
