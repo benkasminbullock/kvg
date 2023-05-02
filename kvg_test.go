@@ -1,21 +1,11 @@
 package kvg
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 )
-
-func die(err error, format string, a ...any) {
-	if err == nil {
-		return
-	}
-	fmt.Fprintf(os.Stderr, format, a...)
-	fmt.Fprintf(os.Stderr, ": %s\n", err)
-	os.Exit(1)
-}
 
 func bin() string {
 	_, filename, _, _ := runtime.Caller(0)

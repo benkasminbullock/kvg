@@ -134,7 +134,8 @@ func ExpectRadical(k rune) bool {
 }
 
 // Change the formatting of xmlout to that used by KanjiVG project,
-// and add the common heading material.
+// and add the common heading material. The KanjiVG files are indented
+// using tabs, but with some of the indentation inconsistent.
 func fixXML(xmlout []byte) []byte {
 	outFixed := strings.Replace(string(xmlout), "></path>", "/>", -1)
 	outFixed = strings.Replace(outFixed, "\t<g", "<g", -1)
@@ -364,9 +365,13 @@ func (kvg *SVG) Base() (base, baseNoKVG string) {
 	return base, baseNoKVG
 }
 
-// Change the base of kvg to "base", e.g. from 01234 to
-// 01234-MonkeyShines, and renumber all the groups and paths
-// appropriately.
+// Change the base of kvg to "base", e.g. from "kvg:01234" to
+// "kvg:01234-MonkeyShines", and renumber all the groups and paths
+// appropriately. By KanjiVG convention, the base always starts with
+// the four characters "kvg:".  If the base of kvg is set using this,
+// when the file is converted to XML, all of the id values in the
+// output will use this base value, so there is no need to set it for
+// each element.
 func (kvg *SVG) SetBase(base string) {
 	if base[0:4] != "kvg:" {
 		log.Fatalf("Base name '%s' does not start with 'kvg:'", base)
@@ -387,7 +392,10 @@ func (kvg *SVG) SetBase(base string) {
 	}
 }
 
-// Renumber the labels of the text group.
+// Renumber the labels of the "text" group. The numerical labels given
+// to the stroke numbers are simply their position within the "text"
+// group, so the user does not need to keep track of the original
+// numbers within the file.
 func (kvg *SVG) RenumberLabels() {
 	labels := kvg.Groups[1]
 	for i := range labels.Children {
@@ -508,6 +516,7 @@ func (g *Group) GetPaths() (paths []*Path) {
 	return getPaths(g)
 }
 
+// Recursive helper for GetPaths
 func getPaths(g *Group) (paths []*Path) {
 	for i := range g.Children {
 		c := &g.Children[i]
@@ -535,7 +544,9 @@ type Radical struct {
 }
 
 // Set this to true if you want SearchRadical to print when it finds a
-// duplicate radical.
+// duplicate radical. Generally you do not want it to do this, since
+// many of the radicals of the characters consist of more than one
+// group of strokes.
 var PrintDouble = false
 
 // Find the radicals in g. This would usually be called on the base
@@ -594,9 +605,7 @@ var filePartRe = regexp.MustCompile("(?:.*/)?(" + hexID + "(?:-([A-Za-z][A-Za-z0
 // regex validation, so we can fail fatally if this fails.
 func HexIDToNum(hexID string) (num int64) {
 	num, err := strconv.ParseInt(hexID, 16, 64)
-	if err != nil {
-		log.Fatalf("%s\n", err)
-	}
+	die(err, "Error parsing hex number")
 	return num
 }
 
@@ -647,8 +656,11 @@ func (base *Group) Subgroups() (elgr map[string][]*Group) {
 	return elgr
 }
 
+// Function for operating on a file we have read in
 type SVGFunc func(kanjivg SVG)
 
+// Function for operating on a file which we have read in, with the
+// file name
 type SVGFileFunc func(file string, kanjivg SVG)
 
 // Examine a file specified by path, and call fn on the contents if
@@ -713,6 +725,15 @@ func FileToNum(fileName string) (num int64) {
 	return HexIDToNum(match[1])
 }
 
+func die(err error, format string, a ...any) {
+	if err == nil {
+		return
+	}
+	fmt.Fprintf(os.Stderr, format, a...)
+	fmt.Fprintf(os.Stderr, ": %s\n", err)
+	os.Exit(1)
+}
+
 // The following is for non-web accessing of the kanji files.
 //
 // For web server applications like the viewer, we want to be able to
@@ -721,10 +742,7 @@ func FileToNum(fileName string) (num int64) {
 // error occurs.
 func ReadKanjiFileOrDie(fileName string) (svg SVG) {
 	svg, err := ReadKanjiFile(fileName)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error unmarshalling '%s': %s\n", fileName, err)
-		os.Exit(1)
-	}
+	die(err, "Error unmarshalling '%s'", fileName)
 	return svg
 }
 
@@ -739,15 +757,15 @@ func Grab(fileName string) (svgPtr *SVG, base *Group) {
 	return &svg, base
 }
 
-// Given a group g, try to find an element of type t. If an element is
-// found, loc is an array of children with element 0 the element of
-// type t and the remaining elements its successive parents. found is
-// true or false depending on whether the element is found. The value
-// of file is not used. This function
-func FindType(file string, g *Group, t string) (found bool, loc []*Child) {
+// Given a group g, try to find an element with type (stroke shape)
+// t. If an element is found, loc is an array of children with element
+// 0 the element of type t and the remaining elements its successive
+// parents. found is true or false depending on whether the element is
+// found.
+func FindType(g *Group, t string) (found bool, loc []*Child) {
 	for i, c := range g.Children {
 		if c.IsGroup {
-			found, loc = FindType(file, &g.Children[i].Group, t)
+			found, loc = FindType(&g.Children[i].Group, t)
 			if found {
 				loc = append(loc, &g.Children[i])
 				return true, loc
@@ -762,6 +780,7 @@ func FindType(file string, g *Group, t string) (found bool, loc []*Child) {
 	return false, loc
 }
 
+// Recursively-called function to make the string.
 func (g *Group) dump(depth int) (s string) {
 	indent := strings.Repeat("  ", depth)
 	s += fmt.Sprintf("%s%s %s\n", indent, g.ID, g.Element)
@@ -775,7 +794,8 @@ func (g *Group) dump(depth int) (s string) {
 	return s
 }
 
-// Convert g into a printable string
+// Convert g into a printable string showing the IDs, group elements,
+// and path types, indented by depth.
 func (g *Group) Dump() (s string) {
 	return g.dump(0)
 }
@@ -786,7 +806,7 @@ func (svg *SVG) GetPaths() (paths []*Path) {
 	return getPaths(base)
 }
 
-// Get the numeric part of a path ID
+// Get the numeric part of a path ID.
 func PathIDToNum(id string) (num int64) {
 	match := pathIDRe.FindStringSubmatch(id)
 	return decimalToNum(match[2])
@@ -796,8 +816,6 @@ func PathIDToNum(id string) (num int64) {
 // validation so we can fail fatally if this fails.
 func decimalToNum(Decimal string) (num int64) {
 	num, err := strconv.ParseInt(Decimal, 10, 64)
-	if err != nil {
-		log.Fatalf("%s\n", err)
-	}
+	die(err, "Error parsing decimal")
 	return num
 }
