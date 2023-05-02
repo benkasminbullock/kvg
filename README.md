@@ -14,3 +14,7 @@ original numbering. In other words, when reordering elements or adding
 elements, the library user only needs to think about the tree of
 `Child`, `Group`, `Text`, and `Path` elements, and does not need to
 give the elements numbers by himself.
+
+There is an example, `read-write-test`, in the `cmd` subdirectory,
+which reads all the files in `kvg.KVDir`, then writes the XML back out
+again, to check that the formats are kept identical.
