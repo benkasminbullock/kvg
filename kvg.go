@@ -819,3 +819,12 @@ func decimalToNum(Decimal string) (num int64) {
 	die(err, "Error parsing decimal")
 	return num
 }
+
+// Given a group g, return its element
+func (g *Group) El() (element string) {
+	element = g.Element
+	if len(g.Original) > 0 {
+		element = g.Original
+	}
+	return element
+}

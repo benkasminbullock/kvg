@@ -6,6 +6,11 @@
    git diff does not get messed up when automatic editing is performed
    on the characters.
 
+   If the flag --fix is supplied to the application, it overwrites the
+   files with corrected versions.
+
+   If the --verbose flag is supplied, a progress message is printed.
+
    This was one of the first things I wrote using the kvg library, and
    thus some of the methods used predate better methods I invented
    later after getting experience with the library. Thus this file may
@@ -33,18 +38,21 @@ func white(c byte) bool {
 // Compare two xmls and print the first difference to stdout.
 func compareXML(file string, xmlout, xmlin []byte) {
 	fileprinted := false
-	if len(xmlout) != len(xmlin) {
+	no := len(xmlout)
+	ni := len(xmlin)
+	if no != ni {
 		fmt.Printf("%s:\n", file)
 		fileprinted = true
-		fmt.Printf("Lengths differ (%d - %d).\n", len(xmlout), len(xmlin))
+		fmt.Printf("Lengths differ (original %d - formatted %d bytes).\n",
+			no, ni)
 	}
-	n := len(xmlin)
-	if len(xmlout) < n {
-		n = len(xmlout)
+	n := ni
+	if no < n {
+		n = no
 	}
 	line := 1
 	offset := 0
-	/* The byte where the line starts. */
+	// The byte of the file where the line starts.
 	lineStart := 0
 	for i, c := range xmlin {
 		if i >= n {
@@ -91,28 +99,28 @@ func compareXML(file string, xmlout, xmlin []byte) {
 
 var kanjiRad map[rune]map[string]string
 
-func el(g *kvg.Group) (element string) {
-	element = g.Element
-	if len(g.Original) > 0 {
-		element = g.Original
-	}
-	return element
-}
-
+// Check that the radical in this variant file is the same as the
+// radicals in the other variants of the same kanji.
 func checkABoo(file string, kanji rune, what string, gs []*kvg.Group) {
 	if len(gs) == 0 {
+		// This radical is not present in the file.
 		return
 	}
 	gen := kanjiRad[kanji][what]
 	if len(gen) == 0 {
+		// This is the first example of finding a radical of type
+		// "what" corresponding to "kanji", so start a new list for
+		// it.
 		if len(kanjiRad[kanji]) == 0 {
+			// This is the first example of finding any radical for
+			// "kanji".
 			kanjiRad[kanji] = make(map[string]string, 0)
 		}
-		kanjiRad[kanji][what] = el(gs[0])
+		kanjiRad[kanji][what] = gs[0].El()
 		return
 	}
 	for _, g := range gs {
-		el := el(g)
+		el := g.El()
 		if el != gen {
 			fmt.Printf("%s: %s radical does not match other variant files '%s' (%X) != '%s' (%X)\n",
 				file, what, el, []rune(el)[0], gen, []rune(gen)[0])
@@ -120,6 +128,8 @@ func checkABoo(file string, kanji rune, what string, gs []*kvg.Group) {
 	}
 }
 
+// Check that the radicals of each type are the same between the
+// variant files for each kanji.
 func checkSame(file string, kanji rune, rad kvg.Radical) {
 	checkABoo(file, kanji, "general", rad.General)
 	checkABoo(file, kanji, "nelson", rad.Nelson)
@@ -127,24 +137,33 @@ func checkSame(file string, kanji rune, rad kvg.Radical) {
 	checkABoo(file, kanji, "jis", rad.JIS)
 }
 
+// Check that the radicals are consistent and present.
 func checkRadical(file string, svg *kvg.SVG, base *kvg.Group, kanji rune) {
 	if !kvg.ExpectRadical(kanji) {
 		return
 	}
 	var rad kvg.Radical
 	base.SearchRadical(&rad)
+	// Check there is at least one radical in the file.
 	if len(rad.General) == 0 && len(rad.Tradit) == 0 &&
 		len(rad.Nelson) == 0 && len(rad.JIS) == 0 {
 		fmt.Printf("No radical found in %s\n", file)
 		totalFails++
 	}
+	// Check that, if there is a Nelson radical, then there must also
+	// be a traditional radical which it differs from.
 	if len(rad.Nelson) > 0 && len(rad.Tradit) == 0 {
-		fmt.Printf("Inconsistent radicals Nelson, no Tradit in %s\n", file)
+		fmt.Printf("Inconsistent radicals: Nelson, no Tradit in %s\n", file)
 		totalFails++
 	}
+	// It might be useful to do checks that the JIS radical alone is
+	// not present in a similar way to the above, although there are
+	// so few examples of the JIS radicals that it's not currently a
+	// priority.
 	checkSame(file, kanji, rad)
 }
 
+// Check the format of the specified file.
 func readWriteTest(file string) {
 	contents, oerr := ioutil.ReadFile(file)
 	if oerr != nil {
@@ -212,14 +231,18 @@ func readWriteTest(file string) {
 }
 
 var fix = false
+var verbose = false
 var totalFails = 0
 var whiteFails = 0
 
 func main() {
 	kanjiRad = make(map[rune]map[string]string, 0)
 	fixFlag := flag.Bool("fix", false, "Fix the errors found")
+	verboseFlag := flag.Bool("verbose", false, "Print progress")
 	flag.Parse()
 	fix = *fixFlag
+	verbose = *verboseFlag
+	n := 0
 	filepath.WalkDir(kvg.KVDir, func(path string, d fs.DirEntry, err error) error {
 		if d.IsDir() {
 			return nil
@@ -228,6 +251,8 @@ func main() {
 			return nil
 		}
 		readWriteTest(path)
+		n++
+		fmt.Printf("%d files checked\r", n)
 		return nil
 	})
 	fmt.Printf("Total failures %d\n", totalFails)
