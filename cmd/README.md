@@ -1,4 +1,4 @@
-#FILES IN THIS DIRECTORY
+# FILES IN THIS DIRECTORY
 
 * ''kvg-mode.el'' provides an Emacs editing mode which automatically
 renumbers all the XML elements for consistency, and indents the buffer
