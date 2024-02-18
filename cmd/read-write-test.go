@@ -255,6 +255,7 @@ func main() {
 		fmt.Printf("%d files checked\r", n)
 		return nil
 	})
+	fmt.Println()
 	fmt.Printf("Total failures %d\n", totalFails)
 	fmt.Printf("Whitespace-only inconsistencies %d\n", whiteFails)
 }
