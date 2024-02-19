@@ -201,10 +201,10 @@ func (c Child) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
 func (p *Path) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error) {
 	for _, attr := range start.Attr {
 		switch attr.Name.Local {
-		case "id":
-			p.ID = attr.Value
 		case "d":
 			p.D = attr.Value
+		case "id":
+			p.ID = attr.Value
 		case "type":
 			p.Type = attr.Value
 		}
@@ -228,36 +228,36 @@ func (p *Path) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error) 
 func (g *Group) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error) {
 	for _, attr := range start.Attr {
 		switch attr.Name.Local {
-		case "id":
-			g.ID = attr.Value
 		case "element":
 			g.Element = attr.Value
-		case "position":
-			g.Position = attr.Value
-		case "part":
-			g.Part = attr.Value
-		case "radical":
-			g.Radical = attr.Value
-		case "style":
-			g.Style = attr.Value
+		case "id":
+			g.ID = attr.Value
+		case "number":
+			g.Number = attr.Value
 		case "original":
 			g.Original = attr.Value
-		case "variant":
-			if attr.Value == "true" {
-				g.Variant = true
-			}
+		case "part":
+			g.Part = attr.Value
 		case "partial":
 			if attr.Value == "true" {
 				g.Partial = true
 			}
 		case "phon":
 			g.Phon = attr.Value
-		case "number":
-			g.Number = attr.Value
+		case "position":
+			g.Position = attr.Value
+		case "radical":
+			g.Radical = attr.Value
 		case "radicalForm":
 			g.RadicalForm = attr.Value
+		case "style":
+			g.Style = attr.Value
 		case "tradForm":
 			g.TradForm = attr.Value
+		case "variant":
+			if attr.Value == "true" {
+				g.Variant = true
+			}
 		default:
 			fmt.Printf("Unhandled -> %s\n", attr.Name.Local)
 		}
@@ -273,14 +273,6 @@ func (g *Group) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error)
 		switch el := token.(type) {
 		case xml.StartElement:
 			switch el.Name.Local {
-			case "path":
-				err = d.DecodeElement(&c.Path, &el)
-				if err != nil {
-					return err
-				}
-				c.IsGroup = false
-				c.IsText = false
-				c.Path.Parent = &c
 			case "g":
 				err = d.DecodeElement(&c.Group, &el)
 				if err != nil {
@@ -289,6 +281,14 @@ func (g *Group) UnmarshalXML(d *xml.Decoder, start xml.StartElement) (err error)
 				c.IsGroup = true
 				c.IsText = false
 				c.Group.Parent = &c
+			case "path":
+				err = d.DecodeElement(&c.Path, &el)
+				if err != nil {
+					return err
+				}
+				c.IsGroup = false
+				c.IsText = false
+				c.Path.Parent = &c
 			case "text":
 				err = d.DecodeElement(&c.Text, &el)
 				if err != nil {
@@ -565,12 +565,6 @@ func (g *Group) SearchRadical(radPtr *Radical) {
 		return
 	}
 	switch rad {
-	case "tradit":
-		if PrintDouble && len(radPtr.Tradit) > 0 {
-			fmt.Printf("Double %s for tradit.\n",
-				radPtr.Tradit[0].ID)
-		}
-		(*radPtr).Tradit = append((*radPtr).Tradit, g)
 	case "general":
 		if PrintDouble && len(radPtr.General) > 0 {
 			fmt.Printf("Double %s for General.\n",
@@ -589,6 +583,12 @@ func (g *Group) SearchRadical(radPtr *Radical) {
 				radPtr.JIS[0].ID)
 		}
 		(*radPtr).JIS = append((*radPtr).JIS, g)
+	case "tradit":
+		if PrintDouble && len(radPtr.Tradit) > 0 {
+			fmt.Printf("Double %s for tradit.\n",
+				radPtr.Tradit[0].ID)
+		}
+		(*radPtr).Tradit = append((*radPtr).Tradit, g)
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown value %s for kvg:radical.\n",
 			rad)
