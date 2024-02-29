@@ -1,10 +1,19 @@
-all: read-write-test renumber
+BINARIES=\
+missing-stroke \
+read-write-test \
+renumber \
 
-renumber: renumber.go
-	go build renumber.go
+
+all: $(BINARIES)
+
+missing-stroke: missing-stroke.go
+	go build missing-stroke.go
 
 read-write-test: read-write-test.go
 	go build read-write-test.go
 
+renumber: renumber.go
+	go build renumber.go
+
 clean:
-	rm -f renumber read-write-test
+	rm -f $(BINARIES)
