@@ -3,3 +3,7 @@ bogusgroup
 missing-stroke
 read-write-test
 renumber
+skip
+# A data file
+skip.json
+
