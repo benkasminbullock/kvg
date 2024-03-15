@@ -1,5 +1,7 @@
 # FILES IN THIS DIRECTORY
 
+* __bogusgroup.go__ is a tool to find groups with no paths in them
+
 * __kvg-mode.el__ provides an Emacs editing mode which automatically
 renumbers all the XML elements for consistency, and indents the buffer
 each time the file is saved (C-x C-s). It requires the user already
