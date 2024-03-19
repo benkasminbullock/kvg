@@ -780,6 +780,14 @@ func FindType(g *Group, t string) (found bool, loc []*Child) {
 	return false, loc
 }
 
+func (c *Child) Dump() (s string) {
+	s += fmt.Sprintf("IsGroup: %t\n", c.IsGroup)
+	s += fmt.Sprintf("IsText: %t\n", c.IsText)
+	s += fmt.Sprintf("Group:%s\n", c.Group.Dump())
+	s += fmt.Sprintf("Text:%s\n", c.Text)
+	return s
+}
+
 // Recursively-called function to make the string.
 func (g *Group) dump(depth int) (s string) {
 	indent := strings.Repeat("  ", depth)

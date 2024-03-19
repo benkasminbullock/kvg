@@ -4,6 +4,7 @@ missing-stroke
 read-write-test
 renumber
 skip
+typeshift
 # A data file
 skip.json
 

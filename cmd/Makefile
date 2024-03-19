@@ -4,24 +4,28 @@ missing-stroke \
 read-write-test \
 renumber \
 skip \
+typeshift \
 
 
 all: $(BINARIES)
 
-missing-stroke: missing-stroke.go
-	go build missing-stroke.go
+bogusgroup: $@.go
+	go build $@.go
 
-read-write-test: read-write-test.go
-	go build read-write-test.go
+missing-stroke: $@.go
+	go build $@.go
 
-renumber: renumber.go
-	go build renumber.go
+read-write-test: $@.go
+	go build $@.go
 
-skip: skip.go
-	go build skip.go
+renumber: $@.go
+	go build $@.go
 
-bogusgroup: bogusgroup.go
-	go build bogusgroup.go
+skip: $@.go
+	go build $@.go
+
+typeshift: $@.go
+	go build $@.go
 
 skip.json: make-skip-json.pl
 	perl make-skip-json.pl
