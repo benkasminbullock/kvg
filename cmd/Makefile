@@ -1,5 +1,6 @@
 BINARIES=\
 bogusgroup \
+empty-path \
 missing-stroke \
 read-write-test \
 renumber \
@@ -10,6 +11,9 @@ typeshift \
 all: $(BINARIES)
 
 bogusgroup: $@.go
+	go build $@.go
+
+empty-path: $@.go
 	go build $@.go
 
 missing-stroke: $@.go

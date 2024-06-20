@@ -13,7 +13,7 @@ buffer each time the file is saved (C-x C-s). It requires the user
 already has go-mode.el installed. It also uses a hard-coded path for
 renumber, so it will require end-user editing to be used correctly.
 
-* __Makefile__ builds the two Go binaries.
+* __Makefile__ builds the Go binaries.
 
 * __read-write-test.go__ provides a utility which reads and then
 writes back out all the files of kvg, and prints a report on which
@@ -22,4 +22,11 @@ files differ from the standard formatting.
 * __renumber.go__ provides a utility which reformats and renumbers the
 files provided on the command line. This is used by the Emacs editing
 mode.
+
+* __skip.go__ is an attempt at computing the SKIP kanji code from the
+KanjiVG information. This uses a file skip.json which is taken from
+Kanjidic.
+
+* __typeshift.go__ is a tool for moving the stroke type values around
+en-masse.
 
